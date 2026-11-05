@@ -1,0 +1,15 @@
+[project]
+name = "client-py"
+version = "0.1.0"
+requires-python = ">=3.14"
+dependencies = [
+    "aiofiles>=25.1.0",
+    "aiohttp>=3.14.5",
+    "beautifulsoup4>=4.15.0",
+    "datetime>=6.0",
+    "html5lib>=1.1",
+    "jupyterlab>=4.6.5",
+    "numpy>=2.5.4",
+    "requests>=2.34.2",
+    "uvicorn>=0.54.0",
+]

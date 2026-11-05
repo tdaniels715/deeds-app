@@ -1,0 +1,13 @@
+.venv
+.idea
+**/.ipynb_checkpoints
+**/__pycache__
+**/.DS_Store
+
+**/*.log
+
+deed_pdfs
+details_pages
+records
+search_pages
+misc
