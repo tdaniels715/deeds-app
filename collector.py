@@ -17,11 +17,7 @@ BASE_URL = "https://search.jeffersondeeds.com/" # jcc
 semaphore = asyncio.Semaphore(3)  # max code instances running at once (below with `SEM`)
 # MAX_ROWS=10 # for debugging; sets how many page elements to process
 
-login_params = {
-    "username": "tdaniels715",
-    "password": "r\"Z7sg5}9Kfq>;s",
-    "csrf_token": csrf
-}
+
 
 # =====================================
 # for explicitly slowing the program to avoid rate limiting, etc.
