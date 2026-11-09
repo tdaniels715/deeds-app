@@ -11,8 +11,12 @@ def init_logger(
     logger = logging.getLogger("client")
     logger.setLevel(log_console_level)
 
-    formatter = logging.Formatter(
-        fmt="%(asctime)s [%(levelname)s] in %(filename)s:%(lineno)d:%(funcName)s : %(message)s",
+    info_formatter = logging.Formatter(
+        fmt="%(asctime)s [%(levelname)s] : %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S"
+    )
+    error_formatter = logging.Formatter(
+        fmt="%(asctime)s [%(levelname)s] in %(filename)s:%(lineno)d : %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S"
     )
 
@@ -21,7 +25,7 @@ def init_logger(
     logger.addHandler(queue_handler)  # Bind the QueueHandler to your application's root logger
 
     file_handler = logging.FileHandler(log_file, mode="w")
-    file_handler.setFormatter(formatter)
+    file_handler.setFormatter(error_formatter)
     file_handler.setLevel(log_file_level)
 
     # Create a QueueListener to pull messages off the queue in a background thread
@@ -29,7 +33,7 @@ def init_logger(
     log_listener.respect_handler_level = True
 
     console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setFormatter(formatter)
+    console_handler.setFormatter(error_formatter)
     console_handler.setLevel(log_console_level)
     logger.addHandler(console_handler)
 

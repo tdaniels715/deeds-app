@@ -13,10 +13,8 @@ from urllib.parse import urlparse, parse_qs, urljoin
 
 # =====================================
 #   "Constants"
-BASE_URL = "http://172.27.0.127:3000/"
-# BASE_URL = "https://search.jeffersondeeds.com/" # jcc
+BASE_URL = "https://search.jeffersondeeds.com/" # jcc
 semaphore = asyncio.Semaphore(3)  # max code instances running at once (below with `SEM`)
-# MAX_ROWS=10 # for debugging; sets how many page elements to process
 
 # =====================================
 # for explicitly slowing the program to avoid rate limiting, etc.
@@ -35,23 +33,20 @@ async def main(logger, log_listener, q_params):
         log_wait(logger, 2)
     except Exception as e:
         logger.error(f"Session setup failed: {e}")
-        logger.debug(f"Stopping work for {YEAR}/{MONTH}/{DAY}")
+        logger.info(f"Stopping work for {YEAR}/{MONTH}/{DAY}")
         log_listener.stop()
         raise e
 
-    try:
-        await collect_deeds(session, logger, q_params)
-        log_wait(logger, 2)
-    except Exception as e:
-        logger.error(f"Main search had errors: {e}")
+    await collect_deeds(session, logger, q_params)
+    log_wait(logger, 2)
 
     try:
         pass
-        # logout(session, logger)
+        logout(session, logger)
     except Exception as e:
         logger.error(f"Logout failed: {e}")
     finally:
-        logger.debug(f"Stopping work for {YEAR}/{MONTH}/{DAY}")
+        logger.info(f"Stopping work for {YEAR}/{MONTH}/{DAY}")
         log_listener.stop()
 
 
@@ -61,17 +56,17 @@ def init_session(logger, user: str, password: str) -> requests.Session:
     session.mount('https://', HTTPAdapter(max_retries=retries))
     session.mount('http://', HTTPAdapter(max_retries=retries)) # for using lab-01 server
 
-    # try:
-    #     csrf_token = get_csrf_token(session, logger)
-    # except Exception as e:
-    #     raise DeedError(f"Could not get CSRF Token: {e}", e)
-    #
-    # log_wait(logger, 2)
-    #
-    # try:
-    #     login(session, logger, user, password, csrf_token)
-    # except Exception as e:
-    #     raise DeedError(f"Could not log in: {e}", e)
+    try:
+        csrf_token = get_csrf_token(session, logger)
+    except Exception as e:
+        raise DeedError(f"Could not get CSRF Token: {e}", e)
+
+    log_wait(logger, 2)
+
+    try:
+        login(session, logger, user, password, csrf_token)
+    except Exception as e:
+        raise DeedError(f"Could not log in: {e}", e)
 
     return session
 
@@ -170,6 +165,7 @@ async def collect_deeds(session, logger, q_params: dict) -> None:
             )
     except Exception as e:
         logger.error(f"Error with some records: {e}")
+        raise e
 
     try:
         logger.debug(f"Starting `records_writer`")
@@ -188,12 +184,12 @@ async def record_processor(session, logger, trow: Tag, row_id: int) -> dict|None
             raise DeedError(f"(row {row_id}) Could not get inst_num: {e}", e)
 
         try:
-            logger.info(f"Working on inst_num {inst_num}")
+            logger.debug(f"Working on inst_num {inst_num}")
             details_url = urljoin(BASE_URL, details_path)
             record = await details_processor(session, logger, DETAILS_DIR, details_url, inst_num)
         except Exception as e:
-            await asyncio.sleep(3)
-            raise DetailsError(f"Could not process details (I#{inst_num}): {e}", e)
+            logger.error(e)
+            return None
 
         await asyncio.sleep(3)
 
@@ -201,7 +197,6 @@ async def record_processor(session, logger, trow: Tag, row_id: int) -> dict|None
             await download_deed_pdf(session, logger, BASE_URL, PDFS_DIR, trow, inst_num)
         except Exception as e:
             logger.error(f"Could not download PDF (I#{inst_num}): {e}")
-            raise e
         finally:
             await asyncio.sleep(3)
 

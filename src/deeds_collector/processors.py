@@ -1,5 +1,6 @@
 import re
 import aiofiles
+import requests
 
 from bs4 import BeautifulSoup
 from bs4.element import Tag
@@ -22,7 +23,7 @@ async def details_processor(
         async with session.get(url) as response:
             response.raise_for_status()
             details_html = await response.text()
-    except Exception as e:
+    except requests.HTTPError as e:
         raise DetailsError(f"Could not fetch details page (I#{inst_num}): {e}", e)
 
     try:
@@ -34,10 +35,10 @@ async def details_processor(
 
     try:
         logger.debug(f"Parsing details (I#{inst_num})")
-        det_page = re.sub(r"\s{2,}", " ", details_html)
-        det_page = re.sub(r"Legal Desc:</span>(<br>)*<span[^>]*>", r"Legal Desc: ", det_page)  # easier to get Legal Desc field
-        det_soup = BeautifulSoup(det_page, "html5lib")
-        record = parse_details_html(logger, details_html, inst_num)
+        details_html = re.sub(r"\s{2,}", " ", details_html)
+        details_html = re.sub(r"Legal Desc:</span>(<br>)*<span[^>]*>", r"Legal Desc: ", details_html)  # easier to get Legal Desc field
+        details_soup = BeautifulSoup(details_html, "html5lib")
+        record = parse_details_html(logger, details_soup, inst_num)
         return record
     except Exception as e:
         raise DetailsError(f"Could not parse details (I#{inst_num}): {type(e).__name__}: {e}", e)
@@ -88,7 +89,7 @@ async def download_deed_pdf(session, logger,
         raise PDFError(f"Could not fetch deed PDF (I#{inst_num}): {e}", e)
 
     try:
-        logger.info(f"Writing PDF (I#{inst_num})")
+        logger.debug(f"Writing PDF (I#{inst_num})")
         async with aiofiles.open(pdfs_dir/f"{inst_num}.pdf", "wb") as file:
             await file.write(data)
     except Exception as e:
