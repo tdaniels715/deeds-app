@@ -1,24 +1,36 @@
 import re
 import aiofiles
-from bs4 import BeautifulSoup, Tag
 
-async def details_processor(session, logger, url: str, inst_num: str) -> dict|None:
+from bs4 import BeautifulSoup
+from bs4.element import Tag
+from pathlib import Path
+
+from deeds_collector.exceptions import *
+
+from urllib.parse import urljoin
+
+async def details_processor(
+    session,
+    logger,
+    details_dir: Path,
+    url: str,
+    inst_num: str
+) -> dict|None:
+
     try:
         logger.info(f"Fetching details page (I#{inst_num})")
         async with session.get(url) as response:
             response.raise_for_status()
             details_html = await response.text()
     except Exception as e:
-        logger.error(f"Could not fetch details page (I#{inst_num}): {e}")
-        raise e
+        raise DetailsError(f"Could not fetch details page (I#{inst_num}): {e}", e)
 
     try:
         logger.debug(f"Saving details page (I#{inst_num})")
-        with open(DETAILS_DIR/f"{inst_num}.html", "w") as file:
+        with open(details_dir/f"{inst_num}.html", "w") as file:
             file.write(details_html)
     except Exception as e:
-        logger.error(f"Could not save details page (I#{inst_num}): {e}")
-        raise e
+        raise DetailsError(f"Could not save details page (I#{inst_num}): {e}", e)
 
     try:
         logger.debug(f"Parsing details (I#{inst_num})")
@@ -28,8 +40,7 @@ async def details_processor(session, logger, url: str, inst_num: str) -> dict|No
         record = parse_details_html(logger, details_html, inst_num)
         return record
     except Exception as e:
-        logger.error(f"Could not parse details (I#{inst_num}): {type(e).__name__}: {e}")
-        raise e
+        raise DetailsError(f"Could not parse details (I#{inst_num}): {type(e).__name__}: {e}", e)
 
 def parse_details_html(logger, details_soup: BeautifulSoup, inst_num: str) -> dict|None:
     record = {"inst_num": inst_num}
@@ -61,21 +72,24 @@ def parse_details_html(logger, details_soup: BeautifulSoup, inst_num: str) -> di
 
     return record
 
-async def download_deed_pdf(session, logger, trow: Tag, inst_num: str) -> None:
+async def download_deed_pdf(session, logger,
+                            base_url: str,
+                            pdfs_dir: Path,
+                            trow: Tag,
+                            inst_num: str
+                            ) -> None:
     try:
         logger.info(f"Downloading PDF (I#{inst_num})")
         deed_url = trow.select("td[id~='selectOption']")[0].a.get("href")
-        async with session.get(BASE_URL+deed_url) as response:
+        async with session.get(urljoin(base_url,deed_url)) as response:
             response.raise_for_status()
             data = await response.read()
     except Exception as e:
-        logger.error(f"Could not fetch deed PDF (I#{inst_num}): {e}")
-        raise e
+        raise PDFError(f"Could not fetch deed PDF (I#{inst_num}): {e}", e)
 
     try:
         logger.info(f"Writing PDF (I#{inst_num})")
-        async with aiofiles.open(PDFS_DIR/f"{inst_num}.pdf", "wb") as file:
+        async with aiofiles.open(pdfs_dir/f"{inst_num}.pdf", "wb") as file:
             await file.write(data)
     except Exception as e:
-        logger.error(f"Could not write PDF ({inst_num}): {e}")
-        raise e
+        raise PDFError(f"Could not write PDF ({inst_num}): {e}", e)
